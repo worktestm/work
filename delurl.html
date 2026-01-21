@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>網址清理工具</title>
+    <title>移除追蹤參數工具</title>
     <style>
         /* 基礎設定 */
         :root {
@@ -27,11 +27,11 @@
             box-sizing: border-box;
         }
 
-        /* 卡片容器：響應式核心 */
+        /* 卡片容器 */
         .container {
             background-color: var(--card-bg);
             width: 100%;
-            max-width: 600px; /* 電腦版最大寬度 */
+            max-width: 600px;
             padding: 30px;
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -67,9 +67,9 @@
             border-radius: 8px;
             font-size: 1rem;
             line-height: 1.4;
-            resize: vertical; /* 允許垂直拉伸 */
-            font-family: monospace; /* 讓網址顯示更整齊 */
-            box-sizing: border-box; /* 確保 padding 不會撐爆寬度 */
+            resize: vertical;
+            font-family: monospace;
+            box-sizing: border-box;
             outline: none;
             transition: border-color 0.2s;
         }
@@ -90,7 +90,7 @@
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            width: 100%; /* 手機版滿版 */
+            width: 100%;
         }
 
         button:hover {
@@ -116,29 +116,29 @@
             font-size: 0.8rem;
             color: #888;
             margin-top: 5px;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Threads/IG 網址縮短器</h2>
+        <h2>移除追蹤參數</h2>
         
         <div class="input-group">
             <label for="urlInput">請在此貼上完整網址：</label>
             <textarea id="urlInput" placeholder="範例：https://www.threads.com/.../?xmt=..."></textarea>
-            <div class="hint">系統將自動移除 ?xmt= 或 ?igsh= 後方的追蹤參數</div>
+            <div class="hint">系統將自動移除 ?xmt, ?igsh, ?fbclid, ?gclid, ?igshid 等後方參數</div>
         </div>
 
-        <button id="shortenBtn" onclick="processUrl()">縮短網址並複製</button>
+        <button id="shortenBtn" onclick="processUrl()">移除追蹤參數並複製</button>
         
-        <div id="status-msg">已縮短並複製到剪貼簿！</div>
+        <div id="status-msg">已處理並複製到剪貼簿！</div>
     </div>
 
     <script>
         function processUrl() {
             const textarea = document.getElementById('urlInput');
-            const statusMsg = document.getElementById('status-msg');
             let url = textarea.value.trim();
 
             if (!url) {
@@ -146,34 +146,34 @@
                 return;
             }
 
-            // 1. 核心邏輯：使用正規表達式移除指定參數
-            // 说明：\? 匹配問號，(xmt|igsh) 匹配這兩個關鍵字之一，=.* 匹配後面的所有內容
-            const regex = /\?(xmt|igsh)=.*/;
+            // 核心邏輯更新：
+            // 1. [?&] 代表匹配「?」或「&」開頭（處理直接接在網址後，或接在其他參數後的情況）
+            // 2. 括號內為所有要移除的關鍵字
+            // 3. =.* 代表移除等號及其後面的所有內容
+            const regex = /[?&](xmt|igsh|fbclid|gclid|igshid)=.*/;
             
-            // 替換網址內容
+            // 執行替換
             const cleanUrl = url.replace(regex, '');
 
-            // 2. 將變更直接顯示在文字區塊中
+            // 更新畫面與複製
             textarea.value = cleanUrl;
+            copyToClipboard(cleanUrl);
+        }
 
-            // 3. 複製到剪貼簿
-            navigator.clipboard.writeText(cleanUrl).then(() => {
-                // 成功複製後的視覺回饋
-                showStatus("✅ 已縮短並複製成功！");
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus("✅ 參數已移除並複製成功！");
             }).catch(err => {
-                // 如果瀏覽器不支援自動複製，顯示縮短成功但需手動複製
                 console.error('複製失敗:', err);
-                showStatus("✅ 已縮短 (請手動複製)");
-                textarea.select(); // 全選文字方便使用者手動複製
+                showStatus("✅ 參數已移除 (請手動複製)");
+                document.getElementById('urlInput').select();
             });
         }
 
-        // 顯示狀態訊息並在 2 秒後消失
         function showStatus(text) {
             const msgEl = document.getElementById('status-msg');
             msgEl.textContent = text;
             msgEl.style.opacity = '1';
-            
             setTimeout(() => {
                 msgEl.style.opacity = '0';
             }, 2000);
