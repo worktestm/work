@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <!-- 響應式設計的關鍵：確保網頁寬度與設備寬度一致 --><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>離線 HTML 編輯器 (App 模式)</title>
+    
+    <!-- PWA/Web App 模式設定 (讓網頁可新增至主畫面並以App模式運行) --><meta name="theme-color" content="#3b82f6"> <!-- Android Chrome 狀態列顏色 --><meta name="apple-mobile-web-app-capable" content="yes"> <!-- iOS 啟用全螢幕模式 --><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- iOS 狀態列樣式 --><meta name="apple-mobile-web-app-title" content="離線編輯器"> <!-- iOS 桌面名稱 --><!-- 所有的樣式皆已內嵌，確保 100% 離線可用性 --><style>
+        /* CSS Reset & 基本佈局 */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            background-color: #f3f4f6; /* bg-gray-100 */
+            min-height: 100vh;
+            /* 調整 padding，讓內容在小螢幕上更貼邊，但仍有間距 */
+            padding: 10px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 移除 max-width 讓 body 在小螢幕上可以佔滿，內容再限制 */
+        }
+        /* 增加一個容器來限制內容的最大寬度，確保 RWD */
+        .container {
+            width: 100%;
+            max-width: 600px; /* 針對手機和平板的常用最大寬度 */
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1; /* 讓容器可以伸展 */
+        }
+        .flex-grow {
+            flex-grow: 1;
+        }
+        .space-y-4 > * + * {
+            margin-top: 1rem; /* space-y-4 */
+        }
+        
+        /* 標題樣式 */
+        .header h1 {
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: 800; /* font-extrabold */
+            color: #1f2937; /* text-gray-800 */
+            text-align: center;
+            margin-bottom: 0.25rem; /* mb-1 */
+        }
+        .header p {
+            font-size: 0.875rem; /* text-sm */
+            color: #6b7280; /* text-gray-500 */
+            text-align: center;
+        }
+
+        /* 程式碼編輯區樣式 */
+        #htmlEditor {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+            line-height: 1.4;
+            min-height: 50vh; 
+            width: 100%; /* 確保佔滿父容器寬度 */
+            padding: 1rem; /* p-4 */
+            font-size: 0.875rem; /* text-sm */
+            border: 2px solid #d1d5db; /* border-2 border-gray-300 */
+            border-radius: 0.5rem; /* rounded-lg */
+            transition: all 150ms ease-in-out;
+            resize: vertical;
+        }
+        #htmlEditor:focus {
+            border-color: #3b82f6; /* focus:border-primary-blue */
+            outline: none;
+            box-shadow: 0 0 0 1px #3b82f6; /* focus:ring-1 focus:ring-primary-blue */
+        }
+
+        /* 按鈕容器樣式 */
+        .button-group {
+            display: flex;
+            /* 調整按鈕間距以適應小螢幕 */
+            gap: 0.75rem; 
+            width: 100%;
+        }
+
+        /* 按鈕基礎樣式 */
+        .btn {
+            flex: 1;
+            padding: 0.75rem 0.5rem; /* py-3, 調整左右 padding */
+            font-weight: 700; /* font-bold */
+            font-size: 1rem; /* 稍微縮小字體以適應小螢幕 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* shadow-lg */
+            transition: all 150ms ease-in-out;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            line-height: 1.25;
+            white-space: nowrap; /* 防止按鈕文字換行 */
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 預覽按鈕樣式 (secondary-indigo) */
+        .btn-preview {
+            background-color: #6366f1;
+        }
+        .btn-preview:hover {
+            background-color: #4f46e5; /* hover:bg-indigo-600 */
+        }
+
+        /* 儲存按鈕樣式 (primary-blue) */
+        .btn-save {
+            background-color: #3b82f6;
+        }
+        .btn-save:hover {
+            background-color: #2563eb; /* hover:bg-blue-600 */
+        }
+
+        /* 訊息框樣式 */
+        .message-box {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, 0);
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transition: all 300ms ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+            max-width: 90%; /* 限制訊息框寬度 */
+            text-align: center;
+        }
+        .message-box.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+        .message-box p {
+            font-weight: 600; /* font-semibold */
+        }
+
+        /* 底部資訊 */
+        footer {
+            width: 100%;
+            max-width: 42rem;
+            margin-top: 1rem;
+            font-size: 0.75rem; /* text-xs */
+            color: #9ca3af; /* text-gray-400 */
+            text-align: center;
+        }
+    </style>
+    <script>
+        /**
+         * 1. 儲存功能：將編輯器中的內容儲存為 .html 檔案並下載。
+         */
+        function saveHtmlFile() {
+            const code = document.getElementById('htmlEditor').value;
+            const filename = 'my_responsive_code.html';
+            // 使用 Blob 確保離線也能運作
+            const blob = new Blob([code], { type: 'text/html' });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename; 
+            
+            document.body.appendChild(a);
+
+            // 使用 setTimeout 確保下載操作在單獨的執行緒中運行，
+            // 這有助於規避部分移動瀏覽器對本地文件執行下載操作的安全限制。
+            setTimeout(() => {
+                try {
+                    a.click();
+                    showMessageBox('成功儲存！檔案已下載至您的手機。', 'text-green-500');
+                } catch (e) {
+                    // 如果下載失敗 (通常發生在 file:// 協定)
+                    showMessageBox('檔案下載失敗 (瀏覽器限制)。請檢查權限或使用其他瀏覽器。', 'text-red-500');
+                    console.error("Download attempt failed:", e);
+                }
+                
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 0);
+        }
+        
+        /**
+         * 2. 預覽功能：將程式碼載入到一個新的瀏覽器視窗中進行即時預覽。
+         */
+        function previewHtml() {
+            const code = document.getElementById('htmlEditor').value;
+            
+            // 開啟一個新的空白視窗/分頁 (_blank)
+            const previewWindow = window.open('', '_blank');
+            
+            if (!previewWindow) {
+                // 如果瀏覽器阻止了彈出視窗
+                showMessageBox('無法開啟新視窗，請檢查瀏覽器是否阻擋彈出視窗。', 'text-red-500');
+                return;
+            }
+            
+            // 寫入程式碼內容到新視窗
+            try {
+                // 為了確保 RWD 效果在新視窗中正常，必須寫入 viewport meta 標籤
+                const fullCode = code.includes('<meta name="viewport"') 
+                                 ? code 
+                                 : code.replace('<head>', '<head><meta name="viewport" content="width=device-width, initial-scale=1.0">');
+                                 
+                previewWindow.document.write(fullCode);
+                previewWindow.document.close();
+                previewWindow.document.title = "HTML 程式碼預覽";
+
+            } catch (e) {
+                 showMessageBox('預覽載入失敗，請檢查程式碼語法。', 'text-red-500');
+                 console.error("Preview loading failed:", e);
+                 // 失敗時嘗試關閉新視窗
+                 try { previewWindow.close(); } catch(err) {} 
+            }
+        }
+
+        /**
+         * 3. 訊息提示框 (取代 alert) - 樣式已更新以配合內嵌 CSS
+         */
+        function showMessageBox(message, colorClass = 'text-primary-blue') {
+            const messageBox = document.getElementById('messageBox');
+            const messageText = document.getElementById('messageText');
+            
+            // 處理訊息顏色 (雖然 CSS 樣式已內嵌，這裡仍保留 className 邏輯以變換顏色)
+            let color = '#3b82f6'; // primary-blue
+            if (colorClass.includes('green-500')) { color = '#10b981'; }
+            if (colorClass.includes('red-500')) { color = '#ef4444'; }
+            
+            messageText.style.color = color;
+            messageText.textContent = message;
+            
+            // 讓訊息框可見
+            messageBox.classList.add('visible');
+            messageBox.classList.remove('opacity-0', 'pointer-events-none');
+
+
+            // 設置計時器，在幾秒後自動隱藏訊息框
+            clearTimeout(messageBox.timer);
+            messageBox.timer = setTimeout(() => {
+                messageBox.classList.remove('visible');
+                messageBox.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000); 
+        }
+    </script>
+</head>
+<body>
+
+    <!-- 頂部標題和說明 --><div class="container">
+        <header class="header w-full mb-4">
+            <h1>💻 離線程式碼編輯器</h1>
+            <p>貼上 HTML 程式碼，可預覽於新視窗並離線儲存。</p>
+        </header>
+
+        <!-- 訊息提示框 (取代 alert) - 採用更友善的動畫效果 --><div id="messageBox" class="message-box">
+            <p id="messageText" style="color:#3b82f6;">訊息</p>
+        </div>
+
+        <!-- 主操作區域 --><main class="w-full flex-grow flex flex-col space-y-4">
+            
+            <!-- 程式碼編輯區域 --><textarea 
+                id="htmlEditor" 
+                placeholder="請在這裡貼上您的 HTML 程式碼..."
+            >&lt;!DOCTYPE html>
+&lt;html lang="zh-Hant">
+&lt;head>
+    &lt;meta charset="UTF-8">
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0">
+    &lt;title>我的 RWD 網頁預覽&lt;/title>
+    &lt;!-- 這裡的樣式是您編輯後會預覽的內容 --&gt;
+    &lt;style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; background-color: #f0f4f8; }
+        .card { 
+            background: white; padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            max-width: 90%; margin: 20px auto; 
+        }
+    &lt;/style>
+&lt;/head>
+&lt;body>
+    &lt;div class="card">
+        &lt;h1 style="color: #6366f1;">新視窗預覽的內容&lt;/h1>
+        &lt;p>這個編輯器現在已經是 100% 離線可用了！&lt;/p>
+        &lt;p>請關閉網路後再試試看「儲存檔案」功能。&lt;/p>
+    &lt;/div>
+&lt;/body>
+&lt;/html></textarea>
+
+            <!-- 操作按鈕 - 左右排列 --><div class="button-group">
+                <button 
+                    onclick="previewHtml()"
+                    class="btn btn-preview"
+                >
+                    👀 預覽畫面 (新視窗)
+                </button>
+                <button 
+                    onclick="saveHtmlFile()"
+                    class="btn btn-save"
+                >
+                    💾 另存為 .html 檔案
+                </button>
+            </div>
+        </main>
+
+        <!-- 底部資訊 (可選) --><footer>
+            此編輯器現在是 100% 離線版本，無需網路連線或資料庫。
+        </footer>
+    </div>
+
+</body>
+</html>
