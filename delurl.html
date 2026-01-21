@@ -8,7 +8,9 @@
         /* 基礎設定 */
         :root {
             --primary-color: #007AFF;
-            --hover-color: #0056b3;
+            --primary-hover: #0056b3;
+            --secondary-color: #e5e5ea; /* 清除按鈕顏色 */
+            --secondary-hover: #d1d1d6;
             --bg-color: #f5f5f7;
             --card-bg: #ffffff;
             --text-color: #333;
@@ -79,10 +81,14 @@
             box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
         }
 
-        /* 按鈕設定 */
+        /* 按鈕群組容器 (新增) */
+        .btn-group {
+            display: flex;
+            gap: 10px; /* 按鈕之間的間距 */
+        }
+
+        /* 通用按鈕設定 */
         button {
-            background-color: var(--primary-color);
-            color: white;
             border: none;
             padding: 14px 20px;
             font-size: 1rem;
@@ -90,15 +96,32 @@
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            width: 100%;
-        }
-
-        button:hover {
-            background-color: var(--hover-color);
         }
 
         button:active {
             transform: scale(0.98);
+        }
+
+        /* 主要按鈕 (移除參數) */
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            flex: 2; /* 佔據較多空間 */
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* 次要按鈕 (清除) */
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: #333;
+            flex: 1; /* 佔據較少空間 */
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--secondary-hover);
         }
 
         /* 狀態提示訊息 */
@@ -131,12 +154,16 @@
             <div class="hint">系統將自動移除 ?xmt, ?igsh, ?fbclid, ?gclid, ?igshid 等後方參數</div>
         </div>
 
-        <button id="shortenBtn" onclick="processUrl()">移除追蹤參數並複製</button>
+        <div class="btn-group">
+            <button class="btn-primary" onclick="processUrl()">移除追蹤參數並複製</button>
+            <button class="btn-secondary" onclick="clearText()">清除</button>
+        </div>
         
         <div id="status-msg">已處理並複製到剪貼簿！</div>
     </div>
 
     <script>
+        // 移除參數與複製功能
         function processUrl() {
             const textarea = document.getElementById('urlInput');
             let url = textarea.value.trim();
@@ -146,20 +173,14 @@
                 return;
             }
 
-            // 核心邏輯更新：
-            // 1. [?&] 代表匹配「?」或「&」開頭（處理直接接在網址後，或接在其他參數後的情況）
-            // 2. 括號內為所有要移除的關鍵字
-            // 3. =.* 代表移除等號及其後面的所有內容
             const regex = /[?&](xmt|igsh|fbclid|gclid|igshid)=.*/;
-            
-            // 執行替換
             const cleanUrl = url.replace(regex, '');
 
-            // 更新畫面與複製
             textarea.value = cleanUrl;
             copyToClipboard(cleanUrl);
         }
 
+        // 複製功能
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 showStatus("✅ 參數已移除並複製成功！");
@@ -170,6 +191,22 @@
             });
         }
 
+        // 新增：清除文字功能
+        function clearText() {
+            const textarea = document.getElementById('urlInput');
+            
+            // 清空內容
+            textarea.value = '';
+            
+            // 讓游標重新回到輸入框，方便直接貼上新的
+            textarea.focus();
+            
+            // 如果原本有顯示成功訊息，順便隱藏
+            const msgEl = document.getElementById('status-msg');
+            msgEl.style.opacity = '0';
+        }
+
+        // 顯示狀態訊息
         function showStatus(text) {
             const msgEl = document.getElementById('status-msg');
             msgEl.textContent = text;
